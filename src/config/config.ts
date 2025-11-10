@@ -4,8 +4,7 @@ import * as path from "node:path";
 config({ path: path.resolve(__dirname, "../../.env") });
 
 function getEnvValue(key: string): string {
-    console.log(key);
-    console.log(process.env[key]);
+
     if (!process.env[key]) {
         throw new Error(`Expected environment variable: ${key}`);
     }
