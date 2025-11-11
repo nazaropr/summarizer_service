@@ -1,4 +1,5 @@
-import { Worker, Job } from "bullmq";
+import { Worker } from "bullmq";
+import { Job } from "bullmq";
 import redis from "../config/redis";
 import * as summarizationService from "../services/summarizationService";
 import logger from "../utils/logger";

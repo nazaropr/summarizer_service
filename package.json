@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/main.js",
+    "start": "ts-node src/main.ts",
     "build": "tsc",
     "dev": "ts-node src/main.ts",
-    "test:enqueue": "ts-node src/test/enqueueJob.ts"
+    "test:enqueue": "ts-node src/test/enqueueJob.ts",
+    "worker": "ts-node src/queues/summarization.consumer.ts"
   },
   "keywords": [],
   "author": "",

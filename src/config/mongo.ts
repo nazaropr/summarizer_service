@@ -1,16 +1,21 @@
 import mongoose from "mongoose";
 import { configs } from "./config";
+import logger from "../utils/logger";
 
 
 // const MONGODB_URI = getEnvValue("MONGODB_URI", "mongodb://localhost:27017/summarizer");
 
 const connectMongo = async (): Promise<void> => {
     try {
-        await mongoose.connect(configs.MONGO_URL);
-        console.log("MongoDB connection established successfully");
-    } catch (error) {
-        console.error("MongoDB connection error:", error);
-        throw error;
+        const mongoUri = configs.MONGO_URL;
+        if (!mongoUri) {
+            throw new Error("MONGODB_URI is not defined in .env");
+        }
+        await mongoose.connect(mongoUri);
+        logger.info("✅ Connected to MongoDB successfully");
+    } catch (err) {
+        logger.error("❌ MongoDB connection failed", { error: err });
+        process.exit(1);
     }
 };
 
