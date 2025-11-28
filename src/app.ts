@@ -1,11 +1,28 @@
 import express from "express";
 import Article from "./models/Article";
 import logger from "./utils/logger";
+import { createBullBoard } from "@bull-board/api";
+import { ExpressAdapter } from "@bull-board/express";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { summarizationQueue } from "./queues/summarization.queue";
+// import { basicAuth } from "./middleware/basicAuth";
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Set up Bull Board dashboard
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath("/admin/queues");
+
+createBullBoard({
+    queues: [new BullMQAdapter(summarizationQueue)],
+    serverAdapter,
+});
+
+// Mount Bull Board dashboard with Basic Auth protection basicAuth,
+app.use("/admin/queues",  serverAdapter.getRouter());
 
 // Health check endpoint
 app.get("/health", (req: express.Request, res: express.Response) => {

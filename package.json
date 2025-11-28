@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/main.ts",
+    "start": "ts-node dist/main.js",
     "build": "tsc",
     "dev": "ts-node src/main.ts",
     "test:enqueue": "ts-node src/test/enqueueJob.ts",
@@ -17,16 +17,20 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/express": "^5.0.5",
+    "@types/joi": "^17.2.2",
     "@types/node": "^20.0.0",
     "dotenv": "^17.2.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@bull-board/api": "^6.14.2",
+    "@bull-board/express": "^6.14.2",
     "axios": "^1.13.2",
     "bullmq": "^5.63.0",
     "express": "^5.1.0",
     "ioredis": "^5.8.2",
+    "joi": "^18.0.1",
     "mongoose": "^8.19.3",
     "openai": "^6.8.1",
     "winston": "^3.18.3"

@@ -4,19 +4,25 @@ import redis from "../config/redis";
 import * as summarizationService from "../services/summarizationService";
 import logger from "../utils/logger";
 import Article from "../models/Article";
-
-interface SummarizationJobPayload {
-    articleId: string;
-    content: string;
-    language: string;
-}
-
-const QUEUE_NAME = "summarizationQueue";
+import { validateJobPayload, SummarizationJobPayload } from "../utils/jobValidation";
+import { QUEUE_NAME } from "./summarization.queue";
+import mongoose from "mongoose"
+const {ObjectId} = mongoose.Types;
 
 const worker = new Worker<SummarizationJobPayload>(
     QUEUE_NAME,
     async (job: Job<SummarizationJobPayload>) => {
-        const { articleId, content, language } = job.data;
+        // Validate job payload before processing
+        let validatedPayload: SummarizationJobPayload;
+        try {
+            validatedPayload = validateJobPayload(job.data, job.id);
+        } catch (validationError) {
+            // Validation error is already logged in validateJobPayload
+            // Re-throw to ensure BullMQ moves job to FAILED
+            throw validationError;
+        }
+
+        const { articleId, content, language } = validatedPayload;
 
         logger.info(`Processing job ${job.id} for article ${articleId}`, {
             jobId: job.id,
@@ -75,7 +81,9 @@ worker.on("failed", async (job: Job | undefined, error: Error) => {
     if (job) {
         const attemptsMade = job.attemptsMade || 0;
         const maxRetries = 3;
-        const { articleId } = job.data as SummarizationJobPayload;
+        // Try to extract articleId even if validation failed
+        const articleId = (job.data as any)?.articleId || "unknown";
+        const isValidationError = error.message.startsWith("Job validation failed");
 
         logger.error(`Job ${job.id} failed (attempt ${attemptsMade + 1})`, {
             jobId: job.id,
@@ -83,9 +91,61 @@ worker.on("failed", async (job: Job | undefined, error: Error) => {
             attemptsMade: attemptsMade + 1,
             maxRetries,
             error: error.message,
+            isValidationError,
         });
 
-        if (attemptsMade < maxRetries) {
+        // If it's a validation error or max retries exceeded, update article status to "failed"
+        if (isValidationError || attemptsMade >= maxRetries) {
+            if (isValidationError) {
+                logger.error(`Job ${job.id} failed due to validation error. Updating article status to "failed"`, {
+                    jobId: job.id,
+                    articleId,
+                    attemptsMade: attemptsMade + 1,
+                });
+            } else {
+                logger.error(`Job ${job.id} exceeded max retries (${attemptsMade + 1}/${maxRetries}). Updating article status to "failed"`, {
+                    jobId: job.id,
+                    articleId,
+                    attemptsMade: attemptsMade + 1,
+                    maxRetries,
+                });
+            }
+
+            // Only update article status if we have a valid articleId
+            if (articleId && articleId !== "unknown") {
+                try {
+                    const errorMessage = error.message || (isValidationError ? "Job validation failed" : "Max retries exceeded");
+                    const id = new ObjectId(articleId);
+                    await Article.findOneAndUpdate(
+                        { _id: id },
+                        {
+                            status: "failed",
+                            errorMessage,
+                        },
+                        { upsert: false, new: true }
+                    );
+                    logger.info(`Article ${articleId} status updated to "failed"`, {
+                        articleId,
+                        jobId: job.id,
+                        errorMessage,
+                        reason: isValidationError ? "validation_error" : "max_retries_exceeded",
+                    });
+                } catch (updateError) {
+                    logger.error(`Failed to update article ${articleId} status to "failed"`, {
+                        articleId,
+                        jobId: job.id,
+                        error: updateError instanceof Error ? updateError.message : String(updateError),
+                    });
+                }
+            } else {
+                logger.warn(`Cannot update article status: invalid articleId (${articleId})`, {
+                    jobId: job.id,
+                    articleId,
+                    error: error.message,
+                });
+            }
+        } else {
+            // Will retry - don't update status yet
             logger.info(`Job ${job.id} will be automatically retried (${attemptsMade + 1}/${maxRetries} attempts)`, {
                 jobId: job.id,
                 articleId,
@@ -93,35 +153,6 @@ worker.on("failed", async (job: Job | undefined, error: Error) => {
                 maxRetries,
             });
             // BullMQ will automatically retry the job based on job options
-        } else {
-            // Max retries exceeded - update MongoDB article status to "failed"
-            logger.error(`Job ${job.id} exceeded max retries (${attemptsMade + 1}/${maxRetries}). Updating article status to "failed"`, {
-                jobId: job.id,
-                articleId,
-                attemptsMade: attemptsMade + 1,
-                maxRetries,
-            });
-
-            try {
-                await Article.findOneAndUpdate(
-                    { articleId },
-                    {
-                        status: "failed",
-                        updatedAt: new Date(),
-                    },
-                    { upsert: false }
-                );
-                logger.info(`Article ${articleId} status updated to "failed" after max retries exceeded`, {
-                    articleId,
-                    jobId: job.id,
-                });
-            } catch (updateError) {
-                logger.error(`Failed to update article ${articleId} status to "failed"`, {
-                    articleId,
-                    jobId: job.id,
-                    error: updateError instanceof Error ? updateError.message : String(updateError),
-                });
-            }
         }
     } else {
         logger.error("Job failed without job data", { error: error.message });

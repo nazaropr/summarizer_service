@@ -16,7 +16,7 @@ async function enqueueTestJob() {
     });
 
     const sampleJob: SummarizationJobPayload = {
-        articleId: "test123",
+        articleId: "test1234",
         content: `The Future of Artificial Intelligence and Its Impact on Society
 
 Artificial Intelligence (AI) has evolved from a speculative idea in science fiction to one of the most transformative forces of the 21st century. In less than a decade, AI has moved from research labs to mainstream use, influencing how people work, communicate, travel, and even think. From healthcare diagnostics to autonomous vehicles, AI systems are reshaping every industry, prompting both excitement and concern about what the future holds.

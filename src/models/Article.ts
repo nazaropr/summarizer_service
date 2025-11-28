@@ -7,6 +7,8 @@ export interface IArticle extends Document {
     summaryLong?: string;
     keywords?: string[];
     status: "pending" | "processing" | "done" | "failed";
+    errorMessage?: string;
+    createdAt: Date;
     updatedAt: Date;
 }
 
@@ -39,23 +41,17 @@ const ArticleSchema: Schema = new Schema(
             enum: ["pending", "processing", "done", "failed"],
             required: true,
             default: "pending",
+            index: true,
         },
-        updatedAt: {
-            type: Date,
-            required: true,
-            default: Date.now,
+        errorMessage: {
+            type: String,
+            required: false,
         },
     },
     {
         timestamps: true,
     }
 );
-
-// Ensure updatedAt is set on save
-ArticleSchema.pre("save", function (next) {
-    this.updatedAt = new Date();
-    next();
-});
 
 const Article = mongoose.model<IArticle>("Article", ArticleSchema);
 

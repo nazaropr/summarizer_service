@@ -2,7 +2,8 @@ import Article from "../models/Article";
 import { getImportantSentences } from "./extractiveService";
 import { generateSummary } from "./abstractiveService";
 import logger from "../utils/logger";
-
+import mongoose from "mongoose"
+const {ObjectId} = mongoose.Types;
 /**
  * Extracts top keywords from text using frequency analysis
  */
@@ -130,16 +131,15 @@ export async function processArticle(
     language: string
 ): Promise<void> {
     logger.info(`Starting processing for article ${articleId}`, { articleId });
-
+    const id = new ObjectId(articleId)
     try {
         // Step 1: Set article status to "processing"
         await Article.findOneAndUpdate(
-            { articleId },
+            { _id: id },
             {
                 articleId,
                 content,
                 status: "processing",
-                updatedAt: new Date(),
             },
             { upsert: true, new: true }
         );
@@ -186,15 +186,17 @@ export async function processArticle(
         // Step 7: Save results in MongoDB
         logger.info(`Saving results to MongoDB`, { articleId });
         await Article.findOneAndUpdate(
-            { articleId },
+            { _id: id },
             {
-                articleId,
-                content,
-                summaryShort,
-                summaryLong,
-                keywords,
-                status: "done",
-                updatedAt: new Date(),
+                $set: {
+                    articleId,
+                    content,
+                    summaryShort,
+                    summaryLong,
+                    keywords,
+                    status: "done",
+                },
+                $unset: { errorMessage: "" }, // Clear error message on success
             },
             { upsert: true, new: true }
         );
@@ -208,15 +210,16 @@ export async function processArticle(
 
         // Update status to "failed" on error
         try {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             await Article.findOneAndUpdate(
-                { articleId },
+                { _id: id },
                 {
                     status: "failed",
-                    updatedAt: new Date(),
+                    errorMessage,
                 },
-                { upsert: true }
+                { upsert: true, new: true }
             );
-            logger.info(`Article ${articleId} status set to "failed"`, { articleId });
+            logger.info(`Article ${articleId} status set to "failed"`, { articleId, errorMessage });
         } catch (updateError) {
             logger.error(`Failed to update article ${articleId} status to "failed"`, {
                 articleId,

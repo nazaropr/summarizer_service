@@ -18,4 +18,6 @@ export const configs = {
     REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
     MONGO_URL: getEnvValue("MONGODB_URI"),
     OPENAI_API_KEY: getEnvValue("OPENAI_API_KEY"),
+    ADMIN_USER: getEnvValue("ADMIN_USER"),
+    ADMIN_PASSWORD: getEnvValue("ADMIN_PASSWORD"),
 };

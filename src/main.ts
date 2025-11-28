@@ -14,6 +14,9 @@ async function startServer() {
             logger.info(`Server started and listening on port ${configs.PORT}`, {
                 port: configs.PORT,
             });
+            logger.info(`Bull Board dashboard available at http://localhost:${configs.PORT}/admin/queues`, {
+                dashboardUrl: `http://localhost:${configs.PORT}/admin/queues`,
+            });
         });
     } catch (error) {
         logger.error("Failed to start server", {
